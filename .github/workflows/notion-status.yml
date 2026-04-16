@@ -12,20 +12,19 @@ jobs:
       - name: Extract Notion page ID and update status
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          BODY="${{ github.event.pull_request.body }}"
-          # PR 본문에서 Notion URL 추출
-          NOTION_URL=$(echo "$BODY" | grep -oP 'https://notion\.so/[a-f0-9]{32}' | head -n1)
+          NOTION_URL=$(echo "$PR_BODY" | grep -oP 'https://notion\.so/[a-f0-9]{32}' | head -n1)
           if [ -z "$NOTION_URL" ]; then
             echo "Notion URL not found in PR body, skipping."
             exit 0
           fi
-          # 32자 hex → UUID 형식으로 변환
           RAW=$(echo "$NOTION_URL" | grep -oP '[a-f0-9]{32}')
           PAGE_ID="${RAW:0:8}-${RAW:8:4}-${RAW:12:4}-${RAW:16:4}-${RAW:20:12}"
           echo "Updating Notion page: $PAGE_ID"
-          curl -s -X PATCH "https://api.notion.com/v1/pages/$PAGE_ID" \
+          RESPONSE=$(curl -s -X PATCH "https://api.notion.com/v1/pages/$PAGE_ID" \
             -H "Authorization: Bearer $NOTION_TOKEN" \
             -H "Notion-Version: 2022-06-28" \
             -H "Content-Type: application/json" \
-            -d '{"properties": {"Status": {"status": {"name": "Fixed"}}}}'
+            -d '{"properties": {"Status": {"status": {"name": "Fixed"}}}}')
+          echo "$RESPONSE"
